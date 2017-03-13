@@ -1,2 +1,7 @@
 /target/
 /bin/
+/resource/GermanEnglishTranslations.txt
+/resource/TranslationMemory.txt
+/resource/WordOutput.txt
+/resource/WordOutputNotTranslated.txt
+/resource/WordSource.txt
