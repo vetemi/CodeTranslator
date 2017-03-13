@@ -4,10 +4,12 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -18,6 +20,11 @@ import java.util.HashSet;
  * @author Valmir Etemi
  */
 public class TranslationIO {
+
+	/**
+	 * Constant for separating values in the output
+	 */
+	private final String SEPARATOR = ";";
 
 	/**
 	 * File which contains the German to English mapping
@@ -38,44 +45,46 @@ public class TranslationIO {
 	 * Output files which contains the words which were not able to translate
 	 */
 	private File wordOutputNotTranslatedFile;
-	
+
 	/**
 	 * Already translated files for more efficient access
 	 */
-	private File alreadyTranslatedFile;
+	private File memoryTranslationFile;
 
 	/**
-	 * The result of importing translation file will be stored in this map as German to English
+	 * The result of importing translation file will be stored in this map as
+	 * German to English
 	 */
 	private HashMap<String, String> germanToEnglischTranslationMap;
-	
+
 	/**
-	 * The result of importing translation file will be stored in this map as English to German
+	 * The result of importing translation file will be stored in this map as
+	 * English to German
 	 */
 	private HashMap<String, String> englishToGermanTranslationMap;
-	
+
 	/**
 	 * Contains the words to translate after importing
 	 */
 	private HashSet<String> translationSourceSet;
-	
+
 	/**
 	 * Contains already translated words as map
 	 */
-	private HashMap<String, String> alreadyTranslatedMap;
+	private HashMap<String, String> memoryTranslationMap;
 
 	public TranslationIO() {
 		super();
 		germanToEnglischTranslationMap = new HashMap<String, String>();
 		englishToGermanTranslationMap = new HashMap<String, String>();
-		alreadyTranslatedMap = new HashMap<String,String>();
+		memoryTranslationMap = new HashMap<String, String>();
 		translationSourceSet = new HashSet<String>();
 
 		germanEnglischTranslationFile = new File("resource/GermanEnglishTranslations.txt");
 		wordSourceFile = new File("resource/WordSource.txt");
-		wordOutputFile = new File("resource/WordOutput.tsv");
-		wordOutputNotTranslatedFile = new File("resource/WordOutputNotTranslated.tsv");
-		alreadyTranslatedFile = new File("resource/AlreadyTranslated.tsv");
+		wordOutputFile = new File("resource/WordOutput.txt");
+		wordOutputNotTranslatedFile = new File("resource/WordOutputNotTranslated.txt");
+		memoryTranslationFile = new File("resource/TranslationMemory.txt");
 	}
 
 	/**
@@ -105,7 +114,8 @@ public class TranslationIO {
 	}
 
 	/**
-	 * Imports the translation files and stores the result in the English to German map and German to English map
+	 * Imports the translation files and stores the result in the English to
+	 * German map and German to English map
 	 */
 	public void importTranslationMaps() {
 		System.out
@@ -130,39 +140,48 @@ public class TranslationIO {
 		System.out.println(
 				"Finished importing german english translation file. Size:" + germanToEnglischTranslationMap.size());
 	}
-	
+
 	/**
-	 * Imports the already translated words from previous runs for a more efficient access.
+	 * Imports the already translated words from previous runs for a more
+	 * efficient access.
 	 */
-	public void importAlreadyFoundTranslations() {
-		System.out.println("Start importing already translated words :" + alreadyTranslatedFile.getName());
+	public void importMemoryMap() {
+		System.out.println("Start importing already translated words :" + memoryTranslationFile.getName());
+
+		if (memoryTranslationMap == null) {
+			memoryTranslationMap = new HashMap<String, String>();
+		}
 
 		try {
 			BufferedReader bReader = new BufferedReader(
-					new InputStreamReader(new FileInputStream(alreadyTranslatedFile), "UTF-8"));
+					new InputStreamReader(new FileInputStream(memoryTranslationFile), "UTF-8"));
 
-			if (alreadyTranslatedMap == null) {
-				alreadyTranslatedMap = new HashMap<String,String>();
-			}
 			while (bReader.ready()) {
 				String line = bReader.readLine();
 				if (!line.isEmpty()) {
-					String[] lineSplit = line.split("\t");
+					String[] lineSplit = line.split(SEPARATOR);
 					if (lineSplit.length > 1) {
-						alreadyTranslatedMap.put(lineSplit[0], lineSplit[1]);
+						memoryTranslationMap.put(lineSplit[0], lineSplit[1]);
+					} else {
+						memoryTranslationMap.put(lineSplit[0], "");
 					}
 				}
 			}
 			bReader.close();
+		} catch (FileNotFoundException notFoundException) {
+			System.out.println("No memory map");
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 		}
-		System.out.println("Finished importing already translated words. Size:" + alreadyTranslatedMap.size());
+		System.out.println("Finished importing already translated words. Size:" + memoryTranslationMap.size());
 	}
 
 	/**
-	 * Takes the output map and writes result of translation in either WordOutput.tsv or WordOutputNotTranslated.tsv
-	 * @param translationOutputMap the map which contains the translated words
+	 * Takes the output map and writes result of translation in either
+	 * WordOutput.tsv or WordOutputNotTranslated.tsv
+	 * 
+	 * @param translationOutputMap
+	 *            the map which contains the translated words
 	 */
 	public void exportOutput(HashMap<String, String> translationOutputMap) {
 		System.out.println("Start exporting translation output file: " + wordOutputFile.getName() + " and "
@@ -187,12 +206,12 @@ public class TranslationIO {
 				try {
 					if (english.isEmpty()) {
 						bWriterNotTranslated.write(german);
-						bWriterNotTranslated.write("\t");
+						bWriterNotTranslated.write(SEPARATOR);
 						bWriterNotTranslated.write(english);
 						bWriterNotTranslated.newLine();
 					} else {
 						bWriterOutput.write(german);
-						bWriterOutput.write("\t");
+						bWriterOutput.write(SEPARATOR);
 						bWriterOutput.write(english);
 						bWriterOutput.newLine();
 					}
@@ -211,26 +230,28 @@ public class TranslationIO {
 
 		System.out.println("End exporting translation output file");
 	}
-	
+
 	/**
 	 * Exports all found translations for a more efficient future access
-	 * @param alreadyTranslated Map containing found translation
+	 * 
+	 * @param memoryTranslations
+	 *            Map containing found translation
 	 */
-	public void exportAlreadyFoundTranslations(HashMap<String,String> alreadyTranslated) {
-		System.out.println("Start exporting already found output file: " + alreadyTranslatedFile.getName());
+	public void exportMemoryTranslation(HashMap<String, String> memoryTranslations) {
+		System.out.println("Start exporting already found output file: " + memoryTranslationFile.getName());
 
 		try {
-			if (alreadyTranslatedFile.exists()) {
-				alreadyTranslatedFile.delete();
+			if (memoryTranslationFile.exists()) {
+				memoryTranslationFile.delete();
 			}
-			alreadyTranslatedFile.createNewFile();
+			memoryTranslationFile.createNewFile();
 
 			BufferedWriter bWriter = new BufferedWriter(
-					new OutputStreamWriter(new FileOutputStream(alreadyTranslatedFile), "UTF-8"));
-			alreadyTranslated.forEach((source, translation) -> {
+					new OutputStreamWriter(new FileOutputStream(memoryTranslationFile), "UTF-8"));
+			memoryTranslations.forEach((source, translation) -> {
 				try {
 					bWriter.write(source);
-					bWriter.write("\t");
+					bWriter.write(SEPARATOR);
 					bWriter.write(translation);
 					bWriter.newLine();
 
@@ -273,7 +294,7 @@ public class TranslationIO {
 	}
 
 	public HashMap<String, String> getAlreadyFoundTranslationMap() {
-		return alreadyTranslatedMap;
+		return memoryTranslationMap;
 	}
 
 }

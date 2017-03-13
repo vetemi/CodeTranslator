@@ -1,10 +1,13 @@
 package de.vetemi.translation;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import de.danielnaber.jwordsplitter.AbstractWordSplitter;
+import de.danielnaber.jwordsplitter.GermanWordSplitter;
 import de.vetemi.wordprocessing.IWordProcessor;
 
 /**
@@ -15,8 +18,20 @@ import de.vetemi.wordprocessing.IWordProcessor;
  */
 public class DictTranslator extends AbstractTranslator {
 
+	/**
+	 * Splitter to decompound German word composition, e.g. "Donaudampfschiff"
+	 * -> "Donau","Dampf","Schiff"
+	 */
+	AbstractWordSplitter compositionSplitter;
+
 	public DictTranslator(IWordProcessor wordProcessor) {
 		super(wordProcessor);
+
+		try {
+			compositionSplitter = new GermanWordSplitter(true);
+		} catch (IOException e) {
+			e.printStackTrace();
+		} 
 	}
 
 	/** Constant for the maximum of translations to found per word */
@@ -32,40 +47,79 @@ public class DictTranslator extends AbstractTranslator {
 	 */
 	private final int MAX_WORDS_TRANS_CONTAINS = 4;
 
-	public String translate(String word) {
-		HashMap<String, Integer> foundTranslations = new HashMap<String, Integer>();
+	@Override
+	public String translate(String wordSource) {
 
-		if (!isValid(word)) {
+		if (!isValid(wordSource)) {
 			return null;
 		}
 
-		// all saved as lower case
-		String wordToTranslate = word.toLowerCase();
+		// try whole word without decomposition
+		String totalTranslation = translateWord(wordSource);
+		if (!totalTranslation.isEmpty()) {
+			return totalTranslation;
+		}
+
+		// Decompose German compounded words
+		List<String> decompoundedWords = compositionSplitter.splitWord(wordSource);
+		boolean hasTranslation = false;
+
+		for (String word : decompoundedWords) {
+			String translatedWord = translateWord(word);
+			if (translatedWord.isEmpty()) {
+				totalTranslation += "N/A";
+			} else {
+				totalTranslation += translatedWord;
+				hasTranslation = true;
+			}
+		}
+		// Save translation
+		if (hasTranslation) {
+			return totalTranslation;
+		}
+		return null;
+	}
+
+	/**
+	 * Does the actual translation. Uses lemmatization to find the translation
+	 * for the base word. Collects the count for every found translation and
+	 * returns the value with the highest count. Assumption is that highest
+	 * count is best translation
+	 * 
+	 * @param word
+	 *            the word to translate
+	 * @return the translation with highest frequency in the translation map
+	 */
+	private String translateWord(String word) {
+
+		// absolute word as lower case
+		String absoluteWord = word.toLowerCase();
 
 		// check if this word has been already translated
-		String translatedString = alreadyTranslated.get(wordToTranslate);
+		String translatedString = memoryMap.get(absoluteWord);
 		if (translatedString != null) {
 			return translatedString;
 		}
 
-		// iterate through whole translation map.
+		HashMap<String, Integer> foundTranslations = new HashMap<String, Integer>();
+
+		// iterate through whole translation map until enough translations are found
 		for (Map.Entry<String, String> translation : translationMap.entrySet()) {
 			if (foundTranslations.size() <= MAX_FIND_TRANS) {
-				// try with absolute word
-				// TODO try with stemmed word
-				// TODO try with lemmatized word
-				
-				// Clean and split key to different word parts in order to have a better check
+
+				// Clean and split key to different word parts in order to
+				// have a better check
 				String cleanedKey = wordProcessor.cleanTranslation(translation.getKey());
 				List<String> keyWords = Arrays.asList(cleanedKey.split("[-\\s]"));
-				
+
 				// translation found
-				if (keyWords.contains(wordToTranslate)) {
+				if (keyWords.contains(absoluteWord)) {
 
 					// clean translation
 					String cleanedValue = wordProcessor.cleanTranslation(translation.getValue());
 
-					// collect all words in a translation and count frequency
+					// collect all words in a translation and count
+					// frequency
 					String[] split = cleanedValue.split("[-\\s]");
 					if (split.length <= MAX_WORDS_TRANS_CONTAINS) {
 						for (String splitWord : split) {
@@ -95,18 +149,20 @@ public class DictTranslator extends AbstractTranslator {
 					bestTranslation = currentTranslation;
 				}
 			}
-			// store word to translate to already translated map for efficient lookup
-			alreadyTranslated.put(wordToTranslate, bestTranslation.getKey());
+			memoryMap.put(absoluteWord, bestTranslation.getKey());
 			return bestTranslation.getKey();
+		} else {
+			memoryMap.put(absoluteWord, "");
+			return "";
 		}
-		// store word to translate to already translated map for efficient lookup
-		alreadyTranslated.put(wordToTranslate, "");
-		return null;
+
 	}
 
 	/**
 	 * Returns true if word has minimum length and is not a digit
-	 * @param word to check
+	 * 
+	 * @param word
+	 *            to check
 	 * @return true if valid and false if not valid
 	 */
 	private boolean isValid(String word) {

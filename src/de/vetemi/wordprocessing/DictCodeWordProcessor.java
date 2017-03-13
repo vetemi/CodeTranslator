@@ -32,25 +32,52 @@ public class DictCodeWordProcessor implements IWordProcessor {
 	/**
 	 * Contains the umlauts regex rules for German
 	 */
-	private Map<String, String> umlautsRegexRules;
+	private Map<String, String> germanCharRegexRules;
 
 	public DictCodeWordProcessor() {
 		super();
 		configureRemoveRegexRules();
-		configureUmlautsRegexRules();
+		configureGermanCharRegexRules();
 		configureDelimiters();
 	}
 
 	public List<String> getWordParts(String wordSource) {
-		String[] wordParts;
+		
+		// final list with all parts
+		ArrayList<String> wordParts = new ArrayList<String>();
+		ArrayList<String> tempList;
+		
+		// Check if word can be split by underscore
 		if (wordSource.contains(UNDERSCORE_DELIMITER)) {
-			wordParts = wordSource.split(UNDERSCORE_DELIMITER);
-		} else if (wordSource.contains(HYPHEN_DELIMITER)) {
-			wordParts = wordSource.split(HYPHEN_DELIMITER);
-		} else {
-			wordParts = wordSource.split(CAMELTITELCASE_DELIMITER);
+			wordParts = new ArrayList<String>(Arrays.asList(wordSource.split(UNDERSCORE_DELIMITER)));
 		}
-		return Arrays.asList(wordParts);
+		// Check if word can be split by hyphen
+		if (wordSource.contains(HYPHEN_DELIMITER)) {
+			// Check if word is already split by underscore
+			if (!wordParts.isEmpty()) {
+				tempList = new ArrayList<String>();
+				for (String word : wordParts) {
+					// Take already split words and split with hyphen
+					tempList.addAll(new ArrayList<String>(Arrays.asList(word.split(HYPHEN_DELIMITER))));
+				}
+				// Contains all underscore and hyphen split words
+				wordParts = tempList;
+			}
+			// Contains only hypen split words
+			wordParts.addAll(new ArrayList<String>(Arrays.asList(wordSource.split(HYPHEN_DELIMITER))));
+		}
+		// Check if words already split by hypen and/or underscore
+		// same procedure as hyphen
+		if (!wordParts.isEmpty()) {
+			tempList = new ArrayList<String>();
+			for (String word : wordParts) {
+				tempList.addAll(new ArrayList<String>(Arrays.asList(word.split(CAMELTITELCASE_DELIMITER))));
+			}
+			wordParts = tempList;
+		} else {
+			wordParts.addAll(new ArrayList<String>(Arrays.asList(wordSource.split(CAMELTITELCASE_DELIMITER))));
+		}
+		return wordParts;
 	}
 
 	public String convertWordToOrigin(List<String> target, List<String> originWordParts, String originWord) {
@@ -88,15 +115,18 @@ public class DictCodeWordProcessor implements IWordProcessor {
 		for (int i = 0; i < target.size(); i++) {
 
 			char[] originChars = origin.get(i).toCharArray();
-			if (Character.isUpperCase(originChars[0])) {
-				if (target.get(i).toCharArray().length > 1) {
-					totalConvertedWord += target.get(i).substring(0, 1).toUpperCase() + target.get(i).substring(1);
+			if (originChars.length > 0) {
+				if (Character.isUpperCase(originChars[0])) {
+					if (target.get(i).toCharArray().length > 1) {
+						totalConvertedWord += target.get(i).substring(0, 1).toUpperCase() + target.get(i).substring(1);
+					} else {
+						totalConvertedWord += target.get(i).substring(0, 1).toUpperCase();
+					}
 				} else {
-					totalConvertedWord += target.get(i).substring(0, 1).toUpperCase();
+					totalConvertedWord += target.get(i);
 				}
-			} else {
-				totalConvertedWord += target.get(i);
 			}
+
 			if ((delimiter == HYPHEN_DELIMITER || delimiter == UNDERSCORE_DELIMITER) && i < (target.size() - 1)) {
 				totalConvertedWord += delimiter;
 			}
@@ -106,14 +136,14 @@ public class DictCodeWordProcessor implements IWordProcessor {
 
 	@Override
 	public String cleanWordToTranslate(String wordToClean) {
-		// Clean german Umlauts: ae -> ä; ue -> ü; oe -> ö for dict
+		// Clean german Umlauts: ae -> �; ue -> �; oe -> � for dict
 		// dictionary
 		String cleanedWord = wordToClean;
 
-		for (Map.Entry<String, String> entry : umlautsRegexRules.entrySet()) {
+		for (Map.Entry<String, String> entry : germanCharRegexRules.entrySet()) {
 			cleanedWord = cleanedWord.replaceAll(entry.getKey(), entry.getValue());
 		}
-		return cleanedWord;
+		return cleanedWord.trim();
 	}
 
 	@Override
@@ -122,7 +152,7 @@ public class DictCodeWordProcessor implements IWordProcessor {
 		for (String rule : removeRegexRules) {
 			wordToClean = wordToClean.replaceAll(rule, "");
 		}
-		return wordToClean;
+		return wordToClean.trim();
 	}
 
 	public String[] getHyphenDelimited(String wordSource) {
@@ -183,13 +213,21 @@ public class DictCodeWordProcessor implements IWordProcessor {
 	}
 
 	/**
-	 * Configures the regex rules for cleaning german words
+	 * Configures the Regex rules for cleaning German words
 	 */
-	private void configureUmlautsRegexRules() {
-		umlautsRegexRules = new HashMap<String, String>();
-		umlautsRegexRules.put("ae", "�");
-		umlautsRegexRules.put("ue", "�");
-		umlautsRegexRules.put("oe", "�");
+	private void configureGermanCharRegexRules() {
+		germanCharRegexRules = new HashMap<String, String>();
+		germanCharRegexRules.put("ae", "ä");
+		germanCharRegexRules.put("ue", "ü");
+		germanCharRegexRules.put("oe", "ö");
+		germanCharRegexRules.put("Ae", "Ä");
+		germanCharRegexRules.put("Ue", "Ü");
+		germanCharRegexRules.put("Oe", "Ö");
+		germanCharRegexRules.put("AE", "Ä");
+		germanCharRegexRules.put("UE", "Ü");
+		germanCharRegexRules.put("OE", "Ö");
+		germanCharRegexRules.put("SS", "ß");
+		germanCharRegexRules.put("ss", "ß");
 	}
 
 	/**

@@ -5,7 +5,7 @@ import java.util.HashMap;
 import de.vetemi.wordprocessing.IWordProcessor;
 
 /**
- * Abstract Translator as basis for different translator base.
+ * Abstract Translator as basis for different translators.
  * 
  * @author Valmir Etemi
  */
@@ -25,11 +25,11 @@ public abstract class AbstractTranslator {
 	 * Map which contains already translated words as well as words which do not
 	 * have a translation. Makes access more efficient
 	 */
-	protected HashMap<String, String> alreadyTranslated;
+	protected HashMap<String, String> memoryMap;
 
 	/**
 	 * Translates word source and returns if translation available, null if
-	 * nothing found first time, empty string if translator has already tried to
+	 * nothing found first time and empty string if translator has already tried to
 	 * translate but nothing found.
 	 * 
 	 * @param wordSource
@@ -40,7 +40,7 @@ public abstract class AbstractTranslator {
 
 	public AbstractTranslator(IWordProcessor wordProcessor) {
 		this.wordProcessor = wordProcessor;
-		alreadyTranslated = new HashMap<String, String>();
+		memoryMap = new HashMap<String, String>();
 	}
 	
 	public void setTranslationMap(HashMap<String, String> translationMap) {
@@ -48,7 +48,7 @@ public abstract class AbstractTranslator {
 	}
 
 	public void setAlreadyTranslatedMap(HashMap<String, String> alreadyTranslatedMap) {
-		this.alreadyTranslated = alreadyTranslatedMap;
+		this.memoryMap = alreadyTranslatedMap;
 	}
 
 }

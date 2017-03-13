@@ -41,7 +41,7 @@ public class ProcessHandler {
 	/**
 	 * Contains all already translated words from previous runs
 	 */
-	private HashMap<String, String> alreadyTranslatedMap;
+	private HashMap<String, String> memoryTranslationMap;
 
 	/**
 	 * IO component for imports and exports
@@ -93,7 +93,7 @@ public class ProcessHandler {
 	private void exportOutput() {
 		System.out.println("Start exporting output");
 		translationIO.exportOutput(translationOutputMap);
-		translationIO.exportAlreadyFoundTranslations(alreadyTranslatedMap);
+		translationIO.exportMemoryTranslation(memoryTranslationMap);
 		System.out.println("End exporting output");
 		System.out.println("----------------------------------");
 	}
@@ -111,7 +111,7 @@ public class ProcessHandler {
 		}
 
 		translator.setTranslationMap(germanToEnglishTranslationMap);
-		translator.setAlreadyTranslatedMap(alreadyTranslatedMap);
+		translator.setAlreadyTranslatedMap(memoryTranslationMap);
 
 		boolean hasTranslation = false;
 		List<String> wordParts;
@@ -119,21 +119,23 @@ public class ProcessHandler {
 		String totalTranslation;
 
 		for (String wordSource : translationSourceSet) {
+			System.out.print("Source: " + wordSource + "\t");
 			wordParts = wordProcessor.getWordParts(wordSource);
 			translatedWordParts = new ArrayList<String>();
 			totalTranslation = "";
 			for (String wordPart : wordParts) {
+								
 				// try first without cleaning word
 				String translatedWord = translator.translate(wordPart);
 
 				// if nothing found try with cleaned word
-				if (translatedWord == null) {
+				if (translatedWord == null || translatedWord.isEmpty()) {
 					String cleanedWort = wordProcessor.cleanWordToTranslate(wordPart);
 					if (!cleanedWort.equals(wordPart))
 						translatedWord = translator.translate(cleanedWort);
 				}
 
-				if (translatedWord == null || translatedWord.equals("")) {
+				if (translatedWord == null || translatedWord.isEmpty()) {
 					// nothing found
 					translatedWordParts.add(wordPart);
 				} else {
@@ -147,10 +149,10 @@ public class ProcessHandler {
 				totalTranslation = wordProcessor.convertWordToOrigin(translatedWordParts, wordParts, wordSource);
 				translationOutputMap.put(wordSource, totalTranslation);
 				hasTranslation = false;
-				System.out.println("Source: " + wordSource + "\t" + "Translation: " + totalTranslation);
+				System.out.println("Translation: " + totalTranslation);
 			} else {
 				translationOutputMap.put(wordSource, "");
-				System.out.println("Source: " + wordSource + "\t" + "Translation: N/A");
+				System.out.println("Translation: None");
 			}
 		}
 
@@ -168,12 +170,12 @@ public class ProcessHandler {
 
 		translationIO.importWordSource();
 		translationIO.importTranslationMaps();
-		translationIO.importAlreadyFoundTranslations();
+		translationIO.importMemoryMap();
 
 		translationSourceSet = translationIO.getTranslationSourceSet();
 		germanToEnglishTranslationMap = translationIO.getGermanToEnglischTranslationMap();
 		englishToGermanTranslationMap = translationIO.getEnglishToGermanTranslationMap();
-		alreadyTranslatedMap = translationIO.getAlreadyFoundTranslationMap();
+		memoryTranslationMap = translationIO.getAlreadyFoundTranslationMap();
 
 		System.out.println("Successfully imported translationFile? " + !germanToEnglishTranslationMap.isEmpty());
 		System.out.println("Successfully imported word source file? " + !translationSourceSet.isEmpty());
